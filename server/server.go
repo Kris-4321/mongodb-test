@@ -60,7 +60,8 @@ func (s *UserManagmentServer) Create(ctx context.Context, req *pb.CreateRequest)
 	}
 	defer client.Disconnect(context.Background())
 	_, err = createUser(client, dbname, collctionName, newuser)
-	return &pb.CreateResponse{User: req.User}, nil
+	response := "user created!"
+	return &pb.CreateResponse{Response: response}, nil
 }
 
 func readUser(client *mongo.Client, databaseName, collectionName string, filter interface{}) ([]Userserver, error) {

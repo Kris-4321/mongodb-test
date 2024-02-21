@@ -21,7 +21,7 @@ message CreateRequest{
     User user=1;
 }
 message CreateResponse{
-    User user=1;
+    string response=1;
 }
 message ReadRequest{
     int32 id=1;
@@ -35,7 +35,7 @@ message UpdateRequest{
     User user=2;
 }
 message UpdateResponse{
-    User user=1;
+    string response=1;
 }
 message DeleteRequest{
     int32 id=1;

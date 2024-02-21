@@ -67,11 +67,14 @@ func main() {
 
 		newuser := pb.User{Id: id, Name: name, Email: email, Password: password}
 
-		create, err := client.Create(context.Background(), &pb.CreateRequest{User: &newuser})
+		createusr, err := client.Create(context.Background(), &pb.CreateRequest{User: &newuser})
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Print(create.CreateResponse)
+		fmt.Println(createusr.CreateResponse)
+
+	case 2:
+
 	}
 
 }
