@@ -8,6 +8,7 @@ package mongodbtest
 
 import (
 	context "context"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -22,11 +23,11 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserManagerClient interface {
-	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
-	Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*ReadResponse, error)
-	Update(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
-	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
-	ReadAll(ctx context.Context, in *ReadAllRequest, opts ...grpc.CallOption) (*ReadAllResponse, error)
+	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*UserResponse, error)
+	Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*UserResponse, error)
+	Update(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*UserResponse, error)
+	Delete(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	ReadAll(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ReadAllResponse, error)
 }
 
 type userManagerClient struct {
@@ -37,8 +38,8 @@ func NewUserManagerClient(cc grpc.ClientConnInterface) UserManagerClient {
 	return &userManagerClient{cc}
 }
 
-func (c *userManagerClient) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
-	out := new(CreateResponse)
+func (c *userManagerClient) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*UserResponse, error) {
+	out := new(UserResponse)
 	err := c.cc.Invoke(ctx, "/pb.UserManager/Create", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -46,8 +47,8 @@ func (c *userManagerClient) Create(ctx context.Context, in *CreateRequest, opts 
 	return out, nil
 }
 
-func (c *userManagerClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*ReadResponse, error) {
-	out := new(ReadResponse)
+func (c *userManagerClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*UserResponse, error) {
+	out := new(UserResponse)
 	err := c.cc.Invoke(ctx, "/pb.UserManager/Read", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -55,8 +56,8 @@ func (c *userManagerClient) Read(ctx context.Context, in *ReadRequest, opts ...g
 	return out, nil
 }
 
-func (c *userManagerClient) Update(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*UpdateResponse, error) {
-	out := new(UpdateResponse)
+func (c *userManagerClient) Update(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*UserResponse, error) {
+	out := new(UserResponse)
 	err := c.cc.Invoke(ctx, "/pb.UserManager/Update", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -64,8 +65,8 @@ func (c *userManagerClient) Update(ctx context.Context, in *UpdateRequest, opts 
 	return out, nil
 }
 
-func (c *userManagerClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
-	out := new(DeleteResponse)
+func (c *userManagerClient) Delete(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/pb.UserManager/Delete", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func (c *userManagerClient) Delete(ctx context.Context, in *DeleteRequest, opts 
 	return out, nil
 }
 
-func (c *userManagerClient) ReadAll(ctx context.Context, in *ReadAllRequest, opts ...grpc.CallOption) (*ReadAllResponse, error) {
+func (c *userManagerClient) ReadAll(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ReadAllResponse, error) {
 	out := new(ReadAllResponse)
 	err := c.cc.Invoke(ctx, "/pb.UserManager/ReadAll", in, out, opts...)
 	if err != nil {
@@ -86,11 +87,11 @@ func (c *userManagerClient) ReadAll(ctx context.Context, in *ReadAllRequest, opt
 // All implementations must embed UnimplementedUserManagerServer
 // for forward compatibility
 type UserManagerServer interface {
-	Create(context.Context, *CreateRequest) (*CreateResponse, error)
-	Read(context.Context, *ReadRequest) (*ReadResponse, error)
-	Update(context.Context, *UpdateRequest) (*UpdateResponse, error)
-	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
-	ReadAll(context.Context, *ReadAllRequest) (*ReadAllResponse, error)
+	Create(context.Context, *CreateRequest) (*UserResponse, error)
+	Read(context.Context, *ReadRequest) (*UserResponse, error)
+	Update(context.Context, *UpdateRequest) (*UserResponse, error)
+	Delete(context.Context, *ReadRequest) (*empty.Empty, error)
+	ReadAll(context.Context, *empty.Empty) (*ReadAllResponse, error)
 	mustEmbedUnimplementedUserManagerServer()
 }
 
@@ -98,19 +99,19 @@ type UserManagerServer interface {
 type UnimplementedUserManagerServer struct {
 }
 
-func (UnimplementedUserManagerServer) Create(context.Context, *CreateRequest) (*CreateResponse, error) {
+func (UnimplementedUserManagerServer) Create(context.Context, *CreateRequest) (*UserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
 }
-func (UnimplementedUserManagerServer) Read(context.Context, *ReadRequest) (*ReadResponse, error) {
+func (UnimplementedUserManagerServer) Read(context.Context, *ReadRequest) (*UserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Read not implemented")
 }
-func (UnimplementedUserManagerServer) Update(context.Context, *UpdateRequest) (*UpdateResponse, error) {
+func (UnimplementedUserManagerServer) Update(context.Context, *UpdateRequest) (*UserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
-func (UnimplementedUserManagerServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
+func (UnimplementedUserManagerServer) Delete(context.Context, *ReadRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedUserManagerServer) ReadAll(context.Context, *ReadAllRequest) (*ReadAllResponse, error) {
+func (UnimplementedUserManagerServer) ReadAll(context.Context, *empty.Empty) (*ReadAllResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadAll not implemented")
 }
 func (UnimplementedUserManagerServer) mustEmbedUnimplementedUserManagerServer() {}
@@ -181,7 +182,7 @@ func _UserManager_Update_Handler(srv interface{}, ctx context.Context, dec func(
 }
 
 func _UserManager_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteRequest)
+	in := new(ReadRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -193,13 +194,13 @@ func _UserManager_Delete_Handler(srv interface{}, ctx context.Context, dec func(
 		FullMethod: "/pb.UserManager/Delete",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserManagerServer).Delete(ctx, req.(*DeleteRequest))
+		return srv.(UserManagerServer).Delete(ctx, req.(*ReadRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _UserManager_ReadAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReadAllRequest)
+	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -211,7 +212,7 @@ func _UserManager_ReadAll_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/pb.UserManager/ReadAll",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserManagerServer).ReadAll(ctx, req.(*ReadAllRequest))
+		return srv.(UserManagerServer).ReadAll(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

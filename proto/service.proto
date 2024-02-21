@@ -3,48 +3,43 @@ syntax = "proto3";
 package pb;
 
 option go_package="/mongodbtest";
+import "google/protobuf/empty.proto";
+
 
 service UserManager{
-    rpc Create(CreateRequest) returns (CreateResponse);
-    rpc Read (ReadRequest) returns (ReadResponse);
-    rpc Update (UpdateRequest) returns (UpdateResponse);
-    rpc Delete (DeleteRequest) returns (DeleteResponse);
-    rpc ReadAll (ReadAllRequest) returns (ReadAllResponse);
+    rpc Create(CreateRequest) returns (UserResponse);
+    rpc Read (ReadRequest) returns (UserResponse);
+    rpc Update (UpdateRequest) returns (UserResponse);
+    rpc Delete (ReadRequest) returns (google.protobuf.Empty);
+    rpc ReadAll (google.protobuf.Empty) returns (ReadAllResponse);
 }
-message User {
-    int32 id =1;
+
+message CreateRequest{
+    string name=1;
+    string email=2;
+    string password=3;
+}
+
+message ReadRequest{
+    string id=1;
+}
+message UpdateRequest{
+    string id=1;
     string name=2;
     string email=3;
     string password=4;
 }
-message CreateRequest{
-    User user=1;
-}
-message CreateResponse{
-    string response=1;
-}
-message ReadRequest{
-    int32 id=1;
-}
-message ReadResponse{
-    User user=1;
+
+message UserResponse{
+    string id=1;
+    string name=2;
+    string email=3;
+    string password=4;
 }
 
-message UpdateRequest{
-    int32 id=1;
-    User user=2;
-}
-message UpdateResponse{
-    string response=1;
-}
-message DeleteRequest{
-    int32 id=1;
-}
-message DeleteResponse{
-    string status=1;
-}
-message ReadAllRequest{}
 message ReadAllResponse{
-    User user=1;
+    repeated UserResponse users=1;
 }
+
+
 
