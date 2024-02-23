@@ -6,174 +6,151 @@ import (
 	"log"
 	"time"
 
-	pb "mongodbtest/proto"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
+
+	pb "mongodbtest/proto"
+)
+
+const (
+	address = "localhost:50051"
 )
 
 func main() {
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	connection, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		log.Fatalf("couldnt connect %v", err)
+		log.Fatalf("failed to connect %v", err)
 	}
-	if err == nil {
-		fmt.Println("connected successfully")
-	}
+	defer connection.Close()
 
-	defer conn.Close()
-	client := pb.NewUserManagerClient(conn)
+	client := pb.NewUserManagerClient(connection)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	fmt.Print(`
-	select an option:
-	1 create new user
-	2 Search for user
-	3 Update user
-	4 delete user
-	5 list all users
-	choice: `)
 	var choice int
-	_, err3 := fmt.Scan(&choice)
-	if err3 != nil {
-		log.Fatalf("error : %v", err3)
+	for {
+		fmt.Print(`Choose an operation
+1 Create user
+2 get user by id
+3 update user
+4 delete user
+5 list all users
+Enter choice:`)
+		fmt.Scanln(&choice)
+
+		switch choice {
+		case 1:
+			CreateUser(client)
+		case 2:
+			ReadUser(client)
+		case 3:
+			UpdateUser(client)
+		case 4:
+			DeleteUser(client)
+		case 5:
+			ReadallUsers(client)
+		default:
+			fmt.Print("invalid choice, choose again")
+		}
+
 	}
 
-	switch choice {
-	case 1:
-		createUser(client, ctx)
-
-	case 2:
-		readUser(client, ctx)
-
-	case 3:
-		updateUser(client, ctx)
-
-	case 4:
-		deleteUser(client, ctx)
-
-	case 5:
-		readallUsers(client, ctx)
-	}
 }
 
-func createUser(client pb.UserManagerClient, ctx context.Context) {
+func CreateUser(client pb.UserManagerClient) {
 	var name, email, password string
-
 	fmt.Print("enter name:")
-	_, err := fmt.Scanln(&name)
-	if err != nil {
-		log.Fatalf("failed reading name %v", err)
-	}
+	fmt.Scanln(&name)
+	fmt.Print("enter email")
+	fmt.Scanln(&email)
+	fmt.Print("enter password")
+	fmt.Scanln(&password)
 
-	fmt.Print("enter email:")
-	_, err2 := fmt.Scanln(&email)
-	if err2 != nil {
-		log.Fatalf("failed reading email %v", err2)
-	}
+	timeout := 20 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
-	fmt.Print("enter password:")
-	_, err3 := fmt.Scanln(&password)
-	if err3 != nil {
-		log.Fatalf("failed reading password %v", err3)
-	}
-
-	timeout := 30 * time.Second
-	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	user, err4 := client.Create(ctx, &pb.CreateRequest{
-		Name:     name,
-		Email:    email,
-		Password: password,
-	})
-
-	if err4 != nil {
-		log.Printf("failed adding user %v", err4)
+	create, err := client.Create(ctx, &pb.CreateRequest{Name: name, Email: email, Password: password})
+	if err != nil {
+		fmt.Printf("couldnt create user %v", err)
 	}
-	log.Printf("added user %v", user)
+	fmt.Printf("user created %v", create.Id)
 }
 
-func readUser(client pb.UserManagerClient, ctx context.Context) {
+func ReadUser(client pb.UserManagerClient) {
 	var id string
-	fmt.Print("enter id:")
-	_, err := fmt.Scanln(&id)
-	if err != nil {
-		log.Fatalf("failed reading id %v", err)
-	}
+	fmt.Print("enter id: ")
+	fmt.Scanln(&id)
 
-	user, err := client.Read(ctx, &pb.ReadRequest{
-		Id: id,
-	})
+	timeout := 20 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+
+	read, err := client.Read(ctx, &pb.ReadRequest{Id: id})
 	if err != nil {
-		log.Fatal("couldnt find user", err)
+		fmt.Printf("error reading id %v", err)
 	}
-	fmt.Printf("Read user: %v", user)
+	fmt.Printf("user: id=%s, name=%s, email=%s, password=%s", read.Id, read.Name, read.Email, read.Password)
 }
 
-func updateUser(client pb.UserManagerClient, ctx context.Context) {
-	var id, name, email, password string
-
-	fmt.Print("enter id:")
-	_, err0 := fmt.Scanln(&id)
-	if err0 != nil {
-		log.Fatalf("failed reading id %v", err0)
-	}
-
-	fmt.Print("enter name:")
-	_, err := fmt.Scanln(&name)
-	if err != nil {
-		log.Fatalf("failed reading name %v", err)
-	}
-
-	fmt.Print("enter email:")
-	_, err2 := fmt.Scanln(&email)
-	if err2 != nil {
-		log.Fatalf("failed reading email %v", err2)
-	}
-
-	fmt.Print("enter password:")
-	_, err3 := fmt.Scanln(&password)
-	if err3 != nil {
-		log.Fatalf("failed reading password %v", err3)
-	}
-
-	user, err4 := client.Update(ctx, &pb.UpdateRequest{
-		Id:       id,
-		Name:     name,
-		Email:    email,
-		Password: password,
-	})
-	if err4 != nil {
-		log.Fatalf("couldnt update user %v", err4)
-	}
-	log.Printf("user updated %v", user)
-}
-
-func deleteUser(client pb.UserManagerClient, ctx context.Context) {
+func UpdateUser(client pb.UserManagerClient) {
 	var id string
-	fmt.Print("enter id:")
-	_, err0 := fmt.Scanln(&id)
-	if err0 != nil {
-		log.Fatalf("failed reading id %v", err0)
-	}
+	fmt.Print("enter id: ")
+	fmt.Scanln(&id)
 
-	_, err := client.Delete(ctx, &pb.ReadRequest{
-		Id: id,
-	})
+	timeout := 20 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+
+	read, err := client.Read(ctx, &pb.ReadRequest{Id: id})
 	if err != nil {
-		log.Fatalf("couldnt delete user with id %v", err)
+		fmt.Printf("error reading id %v", err)
 	}
-	log.Println("deleted user:")
+	fmt.Printf("user: id=%s, name=%s, email=%s, password=%s", read.Id, read.Name, read.Email, read.Password)
+
+	var newname, newemail, newpassword string
+	fmt.Print("enter new name: ")
+	fmt.Scanln(&newname)
+	fmt.Print("enter new email: ")
+	fmt.Scanln(&newemail)
+	fmt.Print("enter new password: ")
+	fmt.Scanln(&newpassword)
+
+	update, err := client.Update(ctx, &pb.UpdateRequest{Id: id, Name: newname, Email: newemail, Password: newpassword})
+	if err != nil {
+		fmt.Printf("couldnt update user  %v", err)
+	}
+	fmt.Printf("User updated new info: id=%s, new name=%s, new email=%s, new password=%s", update.Id, update.Name, update.Email, update.Password)
 }
 
-func readallUsers(client pb.UserManagerClient, ctx context.Context) {
-	users, err := client.ReadAll(ctx, &emptypb.Empty{})
+func DeleteUser(client pb.UserManagerClient) {
+	var id string
+	fmt.Print("enter id: ")
+	fmt.Scanln(&id)
+
+	timeout := 20 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	delete, err := client.Delete(ctx, &pb.ReadRequest{Id: id})
 	if err != nil {
-		log.Fatalf("couldnt list users %v", err)
+		fmt.Printf("couldnt delete user %v", err)
 	}
-	log.Printf("Users: %v", users)
+	fmt.Printf("user with id=%s deleted", delete.Id)
+}
+
+func ReadallUsers(client pb.UserManagerClient) {
+	timeout := 20 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	readall, err := client.ReadAll(ctx, &pb.ListRequest{})
+	if err != nil {
+		log.Fatalf("failed to lsit users %v", err)
+	}
+	fmt.Println("users: ")
+	for _, user := range readall.Users {
+		fmt.Printf("id=%s, name=%s, email=%s, password=%s", user.Id, user.Name, user.Email, user.Password)
+	}
 }

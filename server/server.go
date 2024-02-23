@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	pb "mongodbtest/proto"
 	"net"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,84 +10,132 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
+
+	pb "mongodbtest/proto"
 )
 
 const (
 	port           = ":50051"
 	dbname         = "mongotestdb"
 	collectionname = "users"
+	connstring     = "mongodb://localhost:27017"
 )
 
-type UserManagmentServer struct {
+type server struct {
 	pb.UnimplementedUserManagerServer
-	mongoClient *mongo.Client
-}
-
-func (s *UserManagmentServer) Create(ctx context.Context, in *pb.CreateRequest) (*pb.UserResponse, error) {
-	collection := s.mongoClient.Database(dbname).Collection(collectionname)
-	result, err := collection.InsertOne(ctx, bson.M{"name": in.GetName(), "email": in.GetEmail(), "password": in.GetPassword()})
-	if err != nil {
-		log.Printf("failed to add user into mongo %v", err)
-		return nil, err
-	}
-
-	oid, err2 := result.InsertedID.(primitive.ObjectID)
-	if !err2 {
-		log.Printf("failed to add id %v", err2)
-		return nil, fmt.Errorf("failed to convert id to ojectid %v", err2)
-	}
-
-	return &pb.UserResponse{Id: oid.Hex(), Name: in.GetName(), Email: in.GetEmail(), Password: in.GetPassword()}, nil
-}
-
-func (s *UserManagmentServer) Read(ctx context.Context, in *pb.ReadRequest) (*pb.UserResponse, error) {
-	collection := s.mongoClient.Database(dbname).Collection(collectionname)
-	ID, err := primitive.ObjectIDFromHex(in.GetId())
-	if err != nil {
-		return nil, err
-	}
-	var user bson.M
-	if err := collection.FindOne(ctx, bson.M{"_id": ID}).Decode(&user); err != nil {
-		return nil, err
-	}
-	return &pb.UserResponse{Id: in.GetId(), Name: user["name"].(string), Email: user["email"].(string), Password: user["password"].(string)}, nil
-}
-
-func (s *UserManagmentServer) Readall(ctx context.Context, in *emptypb.Empty) (*pb.ReadAllResponse, error) {
-	collection := s.mongoClient.Database(dbname).Collection(collectionname)
-	cursor, err := collection.Find(ctx, bson.D{{}})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-	var users []*pb.UserResponse
-	for cursor.Next(ctx) {
-		var user bson.M
-		if err = cursor.Decode(&user); err != nil {
-			return nil, err
-		}
-		id := user["_id"].(primitive.ObjectID).Hex()
-		users = append(users, &pb.UserResponse{Id: id, Name: user["name"].(string), Email: user["email"].(string), Password: user["password"].(string)})
-
-	}
-	return &pb.ReadAllResponse{Users: users}, nil
+	collection *mongo.Collection
 }
 
 func main() {
-	mongoClient, err := mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://localhost:27017"))
+	listener, err := net.Listen("tcp", port)
 	if err != nil {
-		log.Fatalf("couldnt connect to mongo %v", err)
-	}
-
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		log.Fatalf("couldnt listen %v", err)
+		log.Fatalf("failed to listen %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterUserManagerServer(s, &UserManagmentServer{mongoClient: mongoClient})
-	log.Printf("server listening on %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to server %v", err)
+
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(connstring))
+	if err != nil {
+		log.Fatalf("failed to connect to mongo %v", err)
 	}
+
+	collection := client.Database(dbname).Collection(collectionname)
+
+	pb.RegisterUserManagerServer(s, &server{collection: collection})
+	log.Printf("server listening at %v", listener.Addr())
+	if err := s.Serve(listener); err != nil {
+		log.Fatalf("failed to serve %v", err)
+	}
+}
+
+func (s *server) Create(ctx context.Context, req *pb.CreateRequest) (*pb.UserResponse, error) {
+	user := bson.D{
+		{Key: "name", Value: req.Name},
+		{Key: "email", Value: req.Email},
+		{Key: "password", Value: req.Password},
+	}
+	result, err := s.collection.InsertOne(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	id := result.InsertedID.(primitive.ObjectID).Hex()
+
+	return &pb.UserResponse{
+		Id:       id,
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password,
+	}, nil
+}
+
+func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.UserResponse, error) {
+	ObjectID, err := primitive.ObjectIDFromHex(req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	var user bson.M
+	if err := s.collection.FindOne(ctx, bson.M{"_id": ObjectID}).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	return &pb.UserResponse{
+		Name:     user["name"].(string),
+		Email:    user["email"].(string),
+		Password: user["password"].(string),
+	}, nil
+}
+
+func (s *server) Update(ctx context.Context, req *pb.UpdateRequest) (*pb.UserResponse, error) {
+	ObjectID, err := primitive.ObjectIDFromHex(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"name":     req.Name,
+			"email":    req.Email,
+			"password": req.Password,
+		},
+	}
+	_, err2 := s.collection.UpdateOne(ctx, bson.M{"_id": ObjectID}, update)
+	if err2 != nil {
+		return nil, err2
+	}
+	return &pb.UserResponse{Id: req.Id, Name: req.Name, Email: req.Email, Password: req.Password}, nil
+}
+
+func (s *server) Delete(ctx context.Context, req *pb.ReadRequest) (*pb.UserResponse, error) {
+	ObjectID, err := primitive.ObjectIDFromHex(req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err2 := s.collection.DeleteOne(ctx, bson.M{"_id": ObjectID})
+	if err2 != nil {
+		return nil, err2
+	}
+	return &pb.UserResponse{Id: req.Id}, nil
+}
+
+func (s *server) ReadAll(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
+	var users []*pb.UserResponse
+	marker, err := s.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer marker.Close(ctx)
+	for marker.Next(ctx) {
+		var user bson.M
+		if err := marker.Decode(&user); err != nil {
+			return nil, err
+		}
+		users = append(users, &pb.UserResponse{
+			Id:       user["_id"].(primitive.ObjectID).Hex(),
+			Name:     user["name"].(string),
+			Email:    user["email"].(string),
+			Password: user["password"].(string),
+		})
+	}
+	return &pb.ListResponse{Users: users}, nil
 }
